@@ -1,12 +1,14 @@
 -- // 3. SYSTEMS // --
 local Zwac = getgenv().Zwac
-if not Zwac then return warn("Önce Core ve GUI'yi yükle!") end
+if not Zwac then 
+    return warn("Önce Core ve GUI'yi yükle!") 
+end
 
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
--- Flight
+-- Flight Engine
 RunService.Heartbeat:Connect(function()
     if not LocalPlayer.Character then return end
     local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
@@ -38,33 +40,39 @@ end)
 -- Auto Roll
 task.spawn(function()
     while task.wait(1.1) do
-        if not Zwac.Settings.AutoRoll then continue end
-        local attr = Zwac.GetCurrentAttribute()
-        local wanted = false
-        for name, on in pairs(Zwac.TargetAttributes) do
-            if on and string.lower(attr) == string.lower(name) then
-                wanted = true
-                break
+        if Zwac.Settings.AutoRoll then
+            local attr = Zwac.GetCurrentAttribute()
+            local wanted = false
+
+            for name, on in pairs(Zwac.TargetAttributes) do
+                if on and string.lower(attr) == string.lower(name) then
+                    wanted = true
+                    break
+                end
             end
-        end
-        if wanted then
-            Zwac.Settings.AutoRoll = false
-            if Zwac.StatusLabel then Zwac.StatusLabel.Text = "HEDEF ATTRIBUTE: " .. attr end
-        else
-            if Zwac.ItemRemote then
-                pcall(function()
-                    Zwac.ItemRemote:FireServer("Item", "Rokakaka")
-                    task.wait(0.7)
-                    Zwac.ItemRemote:FireServer("Item", "Unusual Arrow")
-                end)
+
+            if wanted then
+                Zwac.Settings.AutoRoll = false
+                if Zwac.StatusLabel then
+                    Zwac.StatusLabel.Text = "HEDEF ATTRIBUTE: " .. attr
+                end
+            else
+                if Zwac.ItemRemote then
+                    pcall(function()
+                        Zwac.ItemRemote:FireServer("Item", "Rokakaka")
+                        task.wait(0.7)
+                        Zwac.ItemRemote:FireServer("Item", "Unusual Arrow")
+                    end)
+                end
             end
         end
     end
 end)
 
--- Main Logic
+-- Main Logic (Lair + Quest)
 task.spawn(function()
     while task.wait(0.14) do
+        -- Auto Stand
         if Zwac.Settings.AutoStand and LocalPlayer.Character and not LocalPlayer.Character:FindFirstChild("Stand") then
             Zwac.PressKey(Enum.KeyCode.Q)
         end
@@ -86,9 +94,13 @@ task.spawn(function()
                 if (root.Position - Vector3.new(-681, -116, -810)).Magnitude > 25 then
                     root.CFrame = CFrame.new(-681, -116, -810)
                 elseif Zwac.LairRemote then
-                    pcall(function() Zwac.LairRemote:FireServer("200") end)
-                    Zwac.Settings.LairCounter += 1
-                    if Zwac.StatusLabel then Zwac.StatusLabel.Text = "Lair Runs: " .. Zwac.Settings.LairCounter end
+                    pcall(function()
+                        Zwac.LairRemote:FireServer("200")
+                    end)
+                    Zwac.Settings.LairCounter = Zwac.Settings.LairCounter + 1
+                    if Zwac.StatusLabel then
+                        Zwac.StatusLabel.Text = "Lair Runs: " .. Zwac.Settings.LairCounter
+                    end
                     task.wait(0.9)
                 end
             end
@@ -97,14 +109,23 @@ task.spawn(function()
         -- Auto Quest
         if Zwac.Settings.AutoQuest and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
             local q = Zwac.QuestData[Zwac.Settings.SelectedQuest]
+
             if Zwac.StatusLabel then
-                Zwac.StatusLabel.Text = string.format("Quest: %s | Attr: %s | Kill: %d/%d", Zwac.Settings.SelectedQuest, Zwac.GetCurrentAttribute(), Zwac.KillCount, q.KillsRequired)
+                Zwac.StatusLabel.Text = string.format("Quest: %s | Attr: %s | Kill: %d/%d", 
+                    Zwac.Settings.SelectedQuest, 
+                    Zwac.GetCurrentAttribute(), 
+                    Zwac.KillCount, 
+                    q.KillsRequired)
             end
 
             if Zwac.CurrentState == "START_QUEST" then
                 LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(q.NpcPos)
                 task.wait(0.45)
-                if Zwac.QuestRemote then pcall(function() Zwac.QuestRemote:InvokeServer("Start", q.RemoteArg) end) end
+                if Zwac.QuestRemote then
+                    pcall(function()
+                        Zwac.QuestRemote:InvokeServer("Start", q.RemoteArg)
+                    end)
+                end
                 Zwac.KillCount = 0
                 Zwac.CurrentTarget = nil
                 Zwac.LastTarget = nil
@@ -116,7 +137,7 @@ task.spawn(function()
 
                 if Zwac.CurrentTarget \~= Zwac.LastTarget then
                     if Zwac.LastTarget and (not Zwac.LastTarget.Parent or not Zwac.LastTarget:FindFirstChild("Humanoid") or Zwac.LastTarget.Humanoid.Health <= 0) then
-                        Zwac.KillCount += 1
+                        Zwac.KillCount = Zwac.KillCount + 1
                     end
                     Zwac.LastTarget = Zwac.CurrentTarget
                 end
@@ -156,6 +177,7 @@ end)
 -- ESP
 task.spawn(function()
     while task.wait(1.2) do
+        -- Eski highlight'ları temizle
         for _, v in ipairs(workspace:GetDescendants()) do
             if v:IsA("Highlight") and (v.Name == "Zwac_PlayerESP" or v.Name == "Zwac_MobESP") then
                 if (v.Name == "Zwac_PlayerESP" and not Zwac.Settings.PlayerESP) or (v.Name == "Zwac_MobESP" and not Zwac.Settings.MobESP) then
@@ -164,6 +186,7 @@ task.spawn(function()
             end
         end
 
+        -- Player ESP
         if Zwac.Settings.PlayerESP then
             for _, plr in ipairs(Players:GetPlayers()) do
                 if plr \~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
@@ -179,6 +202,7 @@ task.spawn(function()
             end
         end
 
+        -- Mob ESP
         if Zwac.Settings.MobESP then
             local living = workspace:FindFirstChild("World") and workspace.World:FindFirstChild("Living")
             if living then
